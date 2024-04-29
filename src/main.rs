@@ -1,6 +1,8 @@
 use owo_colors::OwoColorize;
-use std::net::SocketAddr;
+use std::{env, net::SocketAddr, path::PathBuf};
 use tokio::net::TcpListener;
+
+use clap::{arg, command, value_parser, Arg, Command};
 
 // Custom modules
 mod server;
@@ -13,6 +15,29 @@ use crate::server::handle_connection;
 
 #[tokio::main]
 async fn main() {
+    let matches = command!()
+        .arg(
+            Arg::new("input")
+                .required(true)
+                .help("Entrypoint file with all SCSS imports"),
+        )
+        .arg(
+            Arg::new("output")
+                .required(true)
+                .help("File to overwrite with compiled css"),
+        )
+        .arg(
+            Arg::new("port")
+                .help("Port to host websocket server on")
+                .value_parser(value_parser!(u16))
+                .default_value("8080"),
+        )
+        .get_matches();
+
+    println!("input: {:?}", matches.get_one::<String>("input"));
+    println!("output: {:?}", matches.get_one::<String>("output"));
+    println!("port: {:?}", matches.get_one::<u16>("port"));
+
     // Setup server to listen on localhost port 8000
     let addr: &str = "127.0.0.1";
     let port: u16 = 8080;
