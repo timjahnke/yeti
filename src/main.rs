@@ -1,76 +1,76 @@
-use owo_colors::OwoColorize;
-use std::{env, net::SocketAddr, path::PathBuf};
+use axum::routing::get;
+use axum::{Router, ServiceExt};
+use futures::executor;
+use std::path::Path;
+use std::{env, net::SocketAddr};
 use tokio::net::TcpListener;
+use tower_http::services::ServeFile;
 
-use clap::{arg, command, value_parser, Arg, Command};
-
-// Custom modules
+mod config;
 mod server;
 mod sockets;
 mod watcher;
 
-use crate::server::handle_connection;
-
-// invoke: cargo run ./scss/
+use crate::config::{Config, ServerConfig};
+use crate::server::ServerHandler;
+use crate::watcher::WatchHandler;
 
 #[tokio::main]
 async fn main() {
-    let matches = command!()
-        .arg(
-            Arg::new("input")
-                .required(true)
-                .help("Entrypoint file with all SCSS imports"),
-        )
-        .arg(
-            Arg::new("output")
-                .required(true)
-                .help("File to overwrite with compiled css"),
-        )
-        .arg(
-            Arg::new("port")
-                .help("Port to host websocket server on")
-                .value_parser(value_parser!(u16))
-                .default_value("8080"),
-        )
-        .get_matches();
+    // Check invoked directory
+    let current_dir = env::current_dir().expect("Failed to get current directory");
+    println!("The current directory is {}", current_dir.display());
 
-    println!("input: {:?}", matches.get_one::<String>("input"));
-    println!("output: {:?}", matches.get_one::<String>("output"));
-    println!("port: {:?}", matches.get_one::<u16>("port"));
+    // Get config
+    let config_filepath = format!("{}/yeti.toml", current_dir.display());
+    let server_config = ServerConfig::access_toml(&config_filepath);
+    let Config {
+        port,
+        input_file,
+        watch_dir,
+        ..
+    } = server_config.get_config();
 
-    // Setup server to listen on localhost port 8000
+    // Setup Web Server to listen on localhost port 8000
     let addr: &str = "127.0.0.1";
-    let port: u16 = 8080;
-
-    // Satisfy SocketAddr type. E.g. {}:{}""
-    let port_addr: SocketAddr = format!("{}:{}", addr, &port)
+    let host_port_addr: SocketAddr = format!("{addr}:{port}")
         .parse()
         .expect("Failed to parse socket address.");
 
-    // Setup event loop and TCP listener for connections
-    let listener = TcpListener::bind(&port_addr)
+    // Initialise Server Handler instance & hashmap for active connections
+    let server_handler = ServerHandler::new().await;
+
+    // Initialise shared file watcher
+    let watch_handler = WatchHandler::new().await;
+
+    // Setup listener and app for web server router
+    let listener = TcpListener::bind(host_port_addr)
         .await
-        .expect(format!("Failed to bind listener to address {port_addr}").as_str());
+        .expect(format!("Failed to bind listener to address {port}").as_str());
 
-    let socket_addr = format!("ws://localhost:{:?}", &port);
-
-    println!();
-    println!("{}", "🦀 Rust WebSockets v1.0".truecolor(251, 146, 60));
-    println!("🔌 WebSockets Server running... \n");
-
-    println!("🏠 Host Address: ");
-    println!("   {} {}", "IP:".green(), &port_addr.green().underline());
-    println!(
-        "{}",
-        format!(
-            "   {} {} \n",
-            "Socket:".green(),
-            socket_addr.green().underline()
+    // Pass file watcher to Web Socket route handler
+    let app = Router::new()
+        .route(
+            "/ws",
+            get(move |ws, connect_info| {
+                server_handler
+                    .clone()
+                    .ws_handler(ws, connect_info, watch_handler.watcher)
+            }),
         )
-    );
+        .route_service("/client", ServeFile::new("client/client.js"));
 
-    // Setup socket server to listen for incoming connections
-    while let Ok((stream, _)) = listener.accept().await {
-        tokio::spawn(handle_connection(stream, port_addr));
-    }
+    println!("   Yeti v{}", env!("CARGO_PKG_VERSION"));
+    println!("🔌 WebSockets Server running... \n");
+    println!("🏠 Host Address: ");
+    println!("   IP: {host_port_addr}");
+    println!("   Socket: ws://localhost:{port} \n");
+
+    // Start the web server
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }
