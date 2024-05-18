@@ -1,14 +1,11 @@
 use axum::routing::get;
-use axum::{Router, ServiceExt};
-use futures::executor;
-use std::path::Path;
+use axum::Router;
 use std::{env, net::SocketAddr};
 use tokio::net::TcpListener;
 use tower_http::services::ServeFile;
 
 mod config;
 mod server;
-mod sockets;
 mod watcher;
 
 use crate::config::{Config, ServerConfig};
@@ -17,9 +14,8 @@ use crate::watcher::WatchHandler;
 
 #[tokio::main]
 async fn main() {
-    // Check invoked directory
     let current_dir = env::current_dir().expect("Failed to get current directory");
-    println!("The current directory is {}", current_dir.display());
+    // println!("The current directory is {} \n", current_dir.display());
 
     // Get config
     let config_filepath = format!("{}/yeti.toml", current_dir.display());
@@ -31,39 +27,32 @@ async fn main() {
         ..
     } = server_config.get_config();
 
-    // Setup Web Server to listen on localhost port 8000
-    let addr: &str = "127.0.0.1";
-    let host_port_addr: SocketAddr = format!("{addr}:{port}")
+    let port_addr: SocketAddr = format!("127.0.0.1:{port}")
         .parse()
-        .expect("Failed to parse socket address.");
+        .expect("Failed to parse port address.");
 
+    println!("🧊 Yeti v{}", env!("CARGO_PKG_VERSION"));
+    // Initialise shared file watcher & channel receiver
+    let (watcher, shared_rx) = WatchHandler::new(watch_dir);
     // Initialise Server Handler instance & hashmap for active connections
     let server_handler = ServerHandler::new().await;
 
-    // Initialise shared file watcher
-    let watch_handler = WatchHandler::new().await;
-
     // Setup listener and app for web server router
-    let listener = TcpListener::bind(host_port_addr)
+    let listener = TcpListener::bind(port_addr)
         .await
         .expect(format!("Failed to bind listener to address {port}").as_str());
 
-    // Pass file watcher to Web Socket route handler
+    // Pass file watcher receiver to Web Socket route handler
     let app = Router::new()
         .route(
             "/ws",
-            get(move |ws, connect_info| {
-                server_handler
-                    .clone()
-                    .ws_handler(ws, connect_info, watch_handler.watcher)
-            }),
+            get(move |ws, connect_info| server_handler.ws_handler(ws, connect_info, shared_rx)),
         )
         .route_service("/client", ServeFile::new("client/client.js"));
 
-    println!("   Yeti v{}", env!("CARGO_PKG_VERSION"));
-    println!("🔌 WebSockets Server running... \n");
+    println!("✨ WebSockets Server active... \n");
     println!("🏠 Host Address: ");
-    println!("   IP: {host_port_addr}");
+    println!("   IP: {port_addr}");
     println!("   Socket: ws://localhost:{port} \n");
 
     // Start the web server
@@ -72,5 +61,5 @@ async fn main() {
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
     .await
-    .unwrap();
+    .expect("Could not server web server");
 }

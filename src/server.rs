@@ -1,100 +1,73 @@
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::net::SocketAddr;
 
-use futures::executor;
-use tokio::net::TcpStream;
-use tokio_tungstenite::{accept_async, WebSocketStream};
-
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::ws::{WebSocket, WebSocketUpgrade};
 use axum::{extract::connect_info::ConnectInfo, response::Response};
+use tokio_tungstenite::tungstenite::accept;
 
-use crate::watcher::SharedWatcher;
-
-pub type SocketConnections = Arc<Mutex<HashMap<SocketAddr, WebSocket>>>;
+use crate::watcher::SharedRx;
 
 #[derive(Clone)]
-pub struct ServerHandler {
-    pub connections: SocketConnections,
-}
+pub struct ServerHandler {}
 impl ServerHandler {
     pub async fn new() -> Self {
-        let connections = Arc::new(Mutex::new(HashMap::new()));
-        Self { connections }
+        Self {}
     }
 
     pub async fn ws_handler(
         self,
         ws: WebSocketUpgrade,
         ConnectInfo(addr): ConnectInfo<SocketAddr>,
-        watcher: SharedWatcher,
+        rx: SharedRx,
     ) -> Response {
         println!("ws handler fired");
-        ws.on_upgrade(move |socket| Self::handle_socket(self, socket, addr))
+        ws.on_upgrade(move |socket| Self::handle_socket(self, socket, addr, rx))
     }
 
-    pub async fn handle_socket(self, socket: WebSocket, who: SocketAddr) {
+    ///Handles and processes incoming socket connections. Is passed to the stream listener.
+    pub async fn handle_socket(self, mut socket: WebSocket, who: SocketAddr, rx: SharedRx) {
         println!("Incoming connection from {:?}", who);
 
-        self.connections.lock().unwrap().insert(who, socket);
+        println!("Starting outer loop");
 
-        // Store each connection in the hashmap
+        // Create task to check socket connection
+        let socket_task = tokio::spawn(async move {
+            while let Some(msg) = socket.recv().await {
+                let msg = match msg {
+                    Ok(msg) => msg,
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        break;
+                    }
+                };
+            }
+        });
 
-        // access existing file watcher and message on file event
+        // Create task for watching file events
+        let watch_task = tokio::spawn(async move {
+            loop {
+                let event = rx.lock().unwrap().recv().unwrap();
+                match event {
+                    Ok(event) => {
+                        println!("Event: {:?}", event);
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {:?}", e);
+                        break;
+                    }
+                }
+            }
+        });
 
-        executor::block_on(async {})
+        // If either task fails, kill both tasks
+        tokio::select! {
+            _ = socket_task => {
+                println!("Socket task ended");
+            },
+            _ = watch_task => {
+                println!("Watch task ended");
+            }
+        }
 
-        //  Setup and attach file watcher to stream
-        // executor::block_on(async {
-        //     match watch_files(
-        //         Path::new(&watch_dir),
-        //         active_connections.connections.clone(),
-        //     )
-        //     .await
-        //     {
-        //         Err(e) => println!("Watch error: {:?}", e),
-        //         Ok(_) => {
-        //             println!("File watcher running...");
-        //             // Setup socket server to listen for incoming connections
-        //             while let Ok((stream, _)) = listener.accept().await {
-        //                 println!("the stream {:?}", stream);
-        //                 tokio::spawn(handle_connection(
-        //                     stream,
-        //                     active_connections.connections.clone(),
-        //                 ));
-        //             }
-        //         }
-        //     }
-        // });
-
-        //
-
-        // socket
-        //     .send(Message::Text(("asdfadsf".to_string())))
-        //     .await
-        //     .unwrap();
+        println!("Connection closed: {}", who);
     }
-}
-
-/**
- * Handles and processes incoming socket connections. Is passed to the stream listener.
- */
-pub async fn handle_connection(stream: TcpStream, connections: SocketConnections) {
-    println!("the stream: {:?}", stream);
-
-    let client_addr = stream.peer_addr().expect("Failed to get peer address");
-    println!("Incoming connection from: {client_addr}");
-
-    let ws_stream = accept_async(stream)
-        .await
-        .expect("Error during websocket handshake occurred");
-
-    // connections.lock().unwrap().insert(client_addr, ws_stream);
-    println!("{}", format!("Connection established: {client_addr} \n"));
-
-    println!("{} disconnected \n", &client_addr);
-    // connections.lock().unwrap().remove(&client_addr);
 }

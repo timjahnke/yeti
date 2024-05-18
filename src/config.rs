@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use std::error::Error;
 use std::fs;
 use std::io::Write;
 
@@ -25,18 +24,15 @@ impl ServerConfig {
     /// Creates a TOML file if it doesn't exist.
     pub fn access_toml(file_path: &str) -> Self {
         let toml_content: String = match fs::read_to_string(file_path) {
-            Ok(content) => {
-                println!("Found Yeti toml file");
-                content
-            }
+            Ok(content) => content,
             Err(_) => {
                 println!("Creating Yeti toml file");
                 // If the file doesn't exist, create it with some default content
                 let default_content = r#"
                 [config]
                 root_dir = "web"
-                theme_dir = "/sage-8"
-                watch_path = "/scss"
+                theme_dir = "sage-8"
+                watch_path = "scss"
                 input_path = "main.scss"
                 output_path = "main.scss"
                 port = 8080
