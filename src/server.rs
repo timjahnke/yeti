@@ -2,7 +2,6 @@ use std::net::SocketAddr;
 
 use axum::extract::ws::{WebSocket, WebSocketUpgrade};
 use axum::{extract::connect_info::ConnectInfo, response::Response};
-use tokio_tungstenite::tungstenite::accept;
 
 use crate::watcher::SharedRx;
 
@@ -32,7 +31,7 @@ impl ServerHandler {
         // Create task to check socket connection
         let socket_task = tokio::spawn(async move {
             while let Some(msg) = socket.recv().await {
-                let msg = match msg {
+                match msg {
                     Ok(msg) => msg,
                     Err(e) => {
                         eprintln!("Error: {}", e);

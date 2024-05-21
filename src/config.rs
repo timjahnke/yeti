@@ -17,12 +17,12 @@ pub struct Config {
     pub port: u16,
     pub style_id: String,
     pub experimental: bool,
+    pub domain: String,
 }
-
 impl ServerConfig {
     /// Read the TOML file and return the parsed TOML value.
     /// Creates a TOML file if it doesn't exist.
-    pub fn access_toml(file_path: &str) -> Self {
+    pub fn read_or_create_toml(file_path: &str) -> Self {
         let toml_content: String = match fs::read_to_string(file_path) {
             Ok(content) => content,
             Err(_) => {

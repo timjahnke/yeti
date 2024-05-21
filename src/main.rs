@@ -1,5 +1,6 @@
 use axum::routing::get;
 use axum::Router;
+use std::process::{self, Command};
 use std::{env, net::SocketAddr};
 use tokio::net::TcpListener;
 use tower_http::services::ServeFile;
@@ -14,15 +15,31 @@ use crate::watcher::WatchHandler;
 
 #[tokio::main]
 async fn main() {
-    let current_dir = env::current_dir().expect("Failed to get current directory");
+    println!("🧊 Yeti v{}", env!("CARGO_PKG_VERSION"));
+
+    // Check sass is installed in global path on the current system
+    match Command::new("sass").arg("--version").output() {
+        Ok(res) => {
+            let formatted_output = res.stdout;
+            println!("    Sass installed! Version {:?}", formatted_output);
+        }
+        Err(e) => {
+            eprintln!("    Sass executable not found. \nError: {:?}", e);
+            process::exit(1);
+        }
+    }
+
+    let invoked_dir = env::current_dir().expect("Failed to get current directory");
     // println!("The current directory is {} \n", current_dir.display());
 
-    // Get config
-    let config_filepath = format!("{}/yeti.toml", current_dir.display());
-    let server_config = ServerConfig::access_toml(&config_filepath);
+    // Check yeti is invoked in correct directory
+    let config_filepath = format!("{}/yeti.toml", invoked_dir.display());
+
+    // Get or create default config
+    let server_config = ServerConfig::read_or_create_toml(&config_filepath);
     let Config {
         port,
-        input_file,
+        // input_file,
         watch_dir,
         ..
     } = server_config.get_config();
@@ -31,9 +48,8 @@ async fn main() {
         .parse()
         .expect("Failed to parse port address.");
 
-    println!("🧊 Yeti v{}", env!("CARGO_PKG_VERSION"));
     // Initialise shared file watcher & channel receiver
-    let (watcher, shared_rx) = WatchHandler::new(watch_dir);
+    let (_watcher, shared_rx) = WatchHandler::new(watch_dir);
     // Initialise Server Handler instance & hashmap for active connections
     let server_handler = ServerHandler::new().await;
 
@@ -53,7 +69,7 @@ async fn main() {
     println!("✨ WebSockets Server active... \n");
     println!("🏠 Host Address: ");
     println!("   IP: {port_addr}");
-    println!("   Socket: ws://localhost:{port} \n");
+    println!("   Socket: ws://localhost:{port}/ws \n");
 
     // Start the web server
     axum::serve(

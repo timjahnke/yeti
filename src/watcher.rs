@@ -11,7 +11,7 @@ pub struct WatchHandler {}
 impl WatchHandler {
     /// Setup the file watcher, watcher event loop and return the receiver channel for pushing notifications
     pub fn new(watch_dir: &str) -> (INotifyWatcher, SharedRx) {
-        let (tx, mut rx) = mpsc::channel();
+        let (tx, rx) = mpsc::channel();
 
         let mut watcher = RecommendedWatcher::new(
             move |res| tx.send(res).expect("Failed to send event"),

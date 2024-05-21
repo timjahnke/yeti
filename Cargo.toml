@@ -10,7 +10,6 @@ description = "A simple Rust WebSockets server for live-reloading SCSS files."
 futures = "0.3.30"
 notify = "6.1.1"
 tokio = { version = "1.37", features = ["full"] }
-tokio-tungstenite = { version = "0.21.0", features = ["native-tls"] }
 serde = { version = "1.0.200", features = ["derive"] }
 toml = "0.8.12"
 axum = { version = "0.7.5", features = ["ws"] }
