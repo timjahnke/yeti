@@ -1,8 +1,8 @@
 [package]
-name = "rust-websockets"
+name = "yeti"
 version = "0.1.0"
 edition = "2021"
-description = "A simple Rust WebSockets server for live-reloading SCSS files."
+description = "A Rust HTTP & WebSockets server for live-reloading modified SCSS files."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
