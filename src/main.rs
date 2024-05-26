@@ -15,9 +15,12 @@ use crate::config::ServerConfig;
 use crate::server::ServerHandler;
 use crate::watcher::WatchHandler;
 
+// Sass build syntax
+// sass assets/styles/main.scss:dist/main.css --style=compressed --no-source-map
+
 #[tokio::main]
 async fn main() {
-    let config_filename = "yeti.toml";
+    let config_filename = "yeti.json";
     println!("🧊 Yeti v{}", env!("CARGO_PKG_VERSION"));
 
     // Check sass is installed in global path on the current system
@@ -33,31 +36,31 @@ async fn main() {
         }
     }
 
-    // Gracefully exit if no yeti.toml file is found
+    // Gracefully exit if no yeti.json file is found
     if !Path::new(&config_filename).exists() {
-        eprintln!("🚨 No yeti.toml file found in the current directory. Create one to begin. Exiting... \n");
+        eprintln!("🚨 No yeti.json file found in the current directory. Create one to begin. Exiting... \n");
         process::exit(1);
     }
 
-    // Check for existing empty toml file (0 bytes in size)
-    let is_empty = fs::metadata(&config_filename)
-        .expect("Failed to read yeti.toml metadata")
+    // Check for existing empty json file (0 bytes in size)
+    let is_json_empty = fs::metadata(&config_filename)
+        .expect("Failed to read yeti.json metadata")
         .len()
         == 0;
 
-    if is_empty {
-        ServerConfig::set_default_toml(&config_filename);
-        println!("📝 Set default yeti.toml key-value pairs. Update the values and re-run yeti. Exiting... \n");
+    if is_json_empty {
+        ServerConfig::set_default_json_values(&config_filename);
+        println!("📝 Set default yeti.json key-value pairs. Update the values and re-run yeti. Exiting... \n");
         process::exit(1);
     }
 
-    // Read toml for configuration values
+    // Read yeti.json for configuration values
     let ServerConfig {
         port,
         // input_file,
         watch_dir,
         ..
-    } = ServerConfig::read_toml(&config_filename);
+    } = ServerConfig::read_json(&config_filename);
 
     let port_addr: SocketAddr = format!("127.0.0.1:{port}")
         .parse()

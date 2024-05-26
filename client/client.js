@@ -1,8 +1,9 @@
 const port = 8080;
+const style_id = "sage/css-css";
 
 // Setups up socket for live reload of CSS from websocket server file watcher
 // Create a WebSocket connection to the websocket server
-const socket = new WebSocket(`ws://localhost:${port}`);
+const socket = new WebSocket(`ws://localhost:${port}/ws`);
 console.log("Socket script loaded");
 
 socket.onopen = function (event) {
@@ -17,26 +18,33 @@ socket.onmessage = function (event) {
   switch (message) {
     case "reload":
       console.log("Reloading css");
+
+      const styleElement = document.getElementById(style_id);
+
+      // Exit if style element not found
+      if (!styleElement) {
+        console.error("Could not find style element with id: ", style_id);
+        return;
+      }
+
+      const url = styleElement.getAttribute("href");
+      console.log("URL: ", url);
+
       // Convert timestamp from milliseconds to seconds to mimic PHP time()
       const timestampAsSeconds = Math.floor(new Date().getTime() / 1000);
-      const url = `https://myapp.local/app/themes/sage-8/dist/main.css?ver=${timestampAsSeconds}`;
 
-      fetch(url)
+      // Add URL query to cache bust
+      const url_query = `${url}?ver=${timestampAsSeconds}`;
+
+      fetch(url_query)
         .then((res) => res.text())
         .then((css) => {
-          const styleElement = document.getElementById("sage/css-css");
-          if (styleElement) {
-            // styleElement.setAttribute("href", url);
-            styleElement.textContent = css;
-          } else {
-            const newStyleElement = document.createElement("link");
-            newStyleElement.setAttribute("id", "sage/css-css");
-            styleElement.setAttribute("href", url);
-            // newStyleElement.textContent = css;
-            document.head.appendChild(newStyleElement);
-          }
+          // styleElement.setAttribute("href", url);
+          styleElement.textContent = css;
         })
         .catch((e) => console.error("Error reloading css. ", e));
+      break;
+    default:
       break;
   }
 };

@@ -1,8 +1,0 @@
-root_dir = "rust-websockets"
-project_dir = "rust-websockets"
-watch_dir = "scss"
-input_file = "main.scss"
-output_file = "main.scss"
-port = 8080
-style_id = "sage-css"
-experimental = false

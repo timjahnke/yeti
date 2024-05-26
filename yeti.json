@@ -1,0 +1,10 @@
+{
+  "root_dir": "rust-websockets",
+  "project_dir": "rust-websockets",
+  "watch_dir": "scss",
+  "input_file_path": "main.scss",
+  "output_file_path": "main.css",
+  "style_id": "sage/css-css",
+  "port": 8080,
+  "experimental": false
+}
