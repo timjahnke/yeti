@@ -12,7 +12,7 @@ pub struct ServerConfig {
     pub watch_dir: String,
     pub input_file_path: String,
     pub output_file_path: String,
-    pub style_id: String,
+    pub style_tag_id: String,
     pub port: u16,
     pub experimental: bool,
 }
@@ -24,13 +24,13 @@ impl ServerConfig {
         // Overwrite file with some default content
 
         let json_str = r#"{
-                "root_dir": "rust-websockets",
-                "project_dir": "rust-websockets",
-                "watch_dir": "scss",
-                "input_file_path": "main.scss",
-                "output_file_path": "main.css",
+                "root_dir": "current",
+                "project_dir": "theme_name",
+                "watch_dir": "scss_folder",
+                "input_file_path": "scss/main.scss",
+                "output_file_path": "dist/main.css",
                 "port": 8080,
-                "style_id": "sage/css-css",
+                "style_tag_id": "sage/css-css",
                 "experimental": false
             }"#;
 
@@ -50,8 +50,6 @@ impl ServerConfig {
 
     /// Read the JSON file and return the parsed JSON value.
     pub fn read_json(file_path: &str) -> Self {
-        // let json_content: String = fs::read_to_string(file_path).unwrap();
-
         // Unwrap safe as file existence checked prior
         let mut file = File::open(file_path).unwrap();
 

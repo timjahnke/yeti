@@ -84,7 +84,7 @@ async fn main() {
             get(move |ws, connect_info| server_handler.ws_handler(ws, connect_info, shared_rx)),
         )
         .route_service("/client", ServeFile::new("client/client.js"));
-
+    println!("🔭 Watching directory /{}... \n", watch_dir);
     println!("✨ WebSockets Server active... \n");
     println!("🏠 Host Address: ");
     println!("   IP: {port_addr}");

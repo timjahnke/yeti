@@ -2,9 +2,9 @@
   "root_dir": "rust-websockets",
   "project_dir": "rust-websockets",
   "watch_dir": "scss",
-  "input_file_path": "main.scss",
-  "output_file_path": "main.css",
-  "style_id": "sage/css-css",
+  "input_file_path": "scss/main.scss",
+  "output_file_path": "dist/main.css",
+  "style_tag_id": "sage/css-css",
   "port": 8080,
   "experimental": false
 }

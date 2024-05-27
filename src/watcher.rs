@@ -1,4 +1,4 @@
-use notify::event::{AccessKind, AccessMode};
+use notify::event::{AccessKind, AccessMode, ModifyKind};
 use notify::{
     Config, Error, Event, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
@@ -29,14 +29,18 @@ impl WatchHandler {
                     }
                     Ok(event) => match event.kind {
                         // Send message on first modify event
-                        EventKind::Modify(_) => {
-                            if !is_change_event_occuring {
-                                transmitter
-                                    .send(event)
-                                    .expect("Failed to send modify event");
-                                is_change_event_occuring = true;
+                        EventKind::Modify(modify_kind) => match modify_kind {
+                            ModifyKind::Data(_) => {
+                                if !is_change_event_occuring {
+                                    transmitter
+                                        .send(event)
+                                        .expect("Failed to send modify event");
+                                    is_change_event_occuring = true;
+                                }
                             }
-                        }
+                            // Ignore other Modification events. E.g.  create, metadata, rename, delete,
+                            _ => {}
+                        },
                         // Send file access close event and clean up
                         EventKind::Access(access_kind) => match access_kind {
                             AccessKind::Close(AccessMode::Write) => {
