@@ -57,11 +57,15 @@ async fn main() {
     // Read yeti.json for configuration values
     let ServerConfig {
         port,
-        // input_file,
         watch_dir,
+        style_tag_id,
         ..
     } = ServerConfig::read_json(&config_filename);
 
+    // Overwrite client.js file with style tag id and port
+    ServerConfig::set_client_values(port, &style_tag_id);
+
+    // Create port address and parse
     let port_addr: SocketAddr = format!("127.0.0.1:{port}")
         .parse()
         .expect("Failed to parse port address.");

@@ -1,5 +1,6 @@
 const port = 8080;
-const style_id = "sage/css-css";
+const style_tag_id = "sage/css-css";
+// Don't change the above. Dynamically written on Runtime from yeti.json
 
 // Setups up socket for live reload of CSS from websocket server file watcher
 // Create a WebSocket connection to the websocket server
@@ -19,11 +20,11 @@ socket.onmessage = function (event) {
     case "reload":
       console.log("Reloading css");
 
-      const styleElement = document.getElementById(style_id);
+      const styleElement = document.getElementById(style_tag_id);
 
       // Exit if style element not found
       if (!styleElement) {
-        console.error("Could not find style element with id: ", style_id);
+        console.error("Could not find style element with id: ", style_tag_id);
         return;
       }
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{Read, Write},
     process,
 };
@@ -65,5 +65,36 @@ impl ServerConfig {
                 process::exit(1);
             }
         }
+    }
+
+    pub fn set_client_values(port: u16, style_tag_id: &str) {
+        let file_path = "client/client.js";
+
+        // Read the contents of the file into a string
+        let mut contents = fs::read_to_string(&file_path).expect("Failed to read js file.");
+
+        // Lines to change in client.js file
+        let updated_port = format!("const port = {port};");
+        let updated_style_tag = format!("const style_tag_id = \"{style_tag_id}\";");
+
+        let new_contents = contents
+            .lines()
+            .enumerate()
+            .map(|(i, line)| match i {
+                0 => updated_port.as_str(),
+                1 => updated_style_tag.as_str(),
+                _ => line,
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        contents = new_contents;
+
+        // Write the modified contents back to the file
+        let mut file = fs::File::create(&file_path).expect("Failed to find/create file.");
+        file.write_all(contents.as_bytes())
+            .expect("Failed to write to file.");
+
+        println!("client.js updated successfully.");
     }
 }

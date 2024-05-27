@@ -3,6 +3,7 @@ use notify::{
     Config, Error, Event, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use std::path::Path;
+use std::process;
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex};
 
@@ -59,10 +60,13 @@ impl WatchHandler {
         )
         .expect("Failed to create watcher");
 
-        watcher
-            // .configure()
-            .watch(Path::new(watch_dir), RecursiveMode::Recursive)
-            .expect("Failed to watch dir");
+        match watcher.watch(Path::new(watch_dir), RecursiveMode::Recursive) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("Failed to watch directory: {:?}", e);
+                process::exit(1);
+            }
+        }
 
         let shared_rx = Arc::new(Mutex::new(receiver));
 
