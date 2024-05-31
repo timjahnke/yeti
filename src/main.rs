@@ -15,9 +15,6 @@ use crate::config::ServerConfig;
 use crate::server::ServerHandler;
 use crate::watcher::WatchHandler;
 
-// Sass build syntax
-// sass assets/styles/main.scss:dist/main.css --style=compressed --no-source-map
-
 #[tokio::main]
 async fn main() {
     let config_filename = "yeti.json";
@@ -65,21 +62,25 @@ async fn main() {
     // Overwrite client.js file with style tag id and port
     ServerConfig::set_client_values(port, &style_tag_id);
 
-    // Create port address and parse
-    let port_addr: SocketAddr = format!("127.0.0.1:{port}")
-        .parse()
-        .expect("Failed to parse port address.");
-
     // Initialise Server Handler instance
     let server_handler = ServerHandler {};
 
     // Initialise shared file watcher & channel receiver
     let (_watcher, shared_rx) = WatchHandler::watcher(&watch_dir);
 
+    // Create port address and parse
+    let port_addr: SocketAddr = format!("127.0.0.1:{port}")
+        .parse()
+        .expect("Failed to parse port address.");
+
     // Setup listener and app for web server router
-    let listener = TcpListener::bind(port_addr)
-        .await
-        .expect(format!("Failed to bind listener to address {port}").as_str());
+    let listener = match TcpListener::bind(port_addr).await {
+        Ok(listener) => listener,
+        Err(e) => {
+            eprintln!("🚨 Port:{port} is in use. Try another port. \nError: {e}",);
+            process::exit(1);
+        }
+    };
 
     // Pass file watcher receiver to Web Socket route handler
     let app = Router::new()

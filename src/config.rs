@@ -95,6 +95,6 @@ impl ServerConfig {
         file.write_all(contents.as_bytes())
             .expect("Failed to write to file.");
 
-        println!("client.js updated successfully.");
+        println!("📝 client.js updated successfully.");
     }
 }

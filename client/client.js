@@ -14,22 +14,22 @@ socket.onopen = function (event) {
 // Listen for messages from the Rust websocket server
 socket.onmessage = function (event) {
   const message = event.data;
-  console.log("Received message from server: ", message);
+  console.info(`Received message from server: ${message}`);
 
   switch (message) {
     case "reload":
-      console.log("Reloading css");
-
+      console.info("Reloading css");
       const styleElement = document.getElementById(style_tag_id);
 
       // Exit if style element not found
       if (!styleElement) {
-        console.error("Could not find style element with id: ", style_tag_id);
+        console.error(
+          `Reload failed. Failed to find element with id: ${style_tag_id}`
+        );
         return;
       }
 
       const url = styleElement.getAttribute("href");
-      console.log("URL: ", url);
 
       // Convert timestamp from milliseconds to seconds to mimic PHP time()
       const timestampAsSeconds = Math.floor(new Date().getTime() / 1000);
@@ -42,6 +42,7 @@ socket.onmessage = function (event) {
         .then((css) => {
           // styleElement.setAttribute("href", url);
           styleElement.textContent = css;
+          console.info("CSS reloaded");
         })
         .catch((e) => console.error("Error reloading css. ", e));
       break;
