@@ -2,13 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File},
     io::{Read, Write},
+    path::Path,
     process,
 };
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ServerConfig {
-    pub root_dir: String,
-    pub project_dir: String,
     pub watch_dir: String,
     pub input_file_path: String,
     pub output_file_path: String,
@@ -24,8 +23,6 @@ impl ServerConfig {
         // Overwrite file with some default content
 
         let json_str = r#"{
-                "root_dir": "current",
-                "project_dir": "theme_name",
                 "watch_dir": "scss_folder",
                 "input_file_path": "scss/main.scss",
                 "output_file_path": "dist/main.css",
@@ -68,9 +65,21 @@ impl ServerConfig {
     }
 
     pub fn set_client_values(port: u16, style_tag_id: &str) {
-        let file_path = "client/client.js";
+        let global_path = std::env::current_exe().expect("Couldn't get current exe path");
+        println!("📂 Current exe path: {}", global_path.display());
 
-        // Read the contents of the file into a string
+        let file_path = format!(
+            "{}/yeti_client/client.js",
+            global_path
+                .parent()
+                .expect("Couldn't get parent path")
+                .display()
+        );
+
+        if !Path::new(&file_path).exists() {
+            eprintln!("🚨 No client.js file found in the global directory. Check PATH for yeti_client/client.js. Exiting... \n");
+            process::exit(1);
+        }
         let mut contents = fs::read_to_string(&file_path).expect("Failed to read js file.");
 
         // Lines to change in client.js file

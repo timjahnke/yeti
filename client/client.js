@@ -37,14 +37,8 @@ socket.onmessage = function (event) {
       // Add URL query to cache bust
       const url_query = `${url}?ver=${timestampAsSeconds}`;
 
-      fetch(url_query)
-        .then((res) => res.text())
-        .then((css) => {
-          // styleElement.setAttribute("href", url);
-          styleElement.textContent = css;
-          console.info("CSS reloaded");
-        })
-        .catch((e) => console.error("Error reloading css. ", e));
+      // Set new URL to automatically fetch new css and bust cache
+      styleElement.setAttribute("href", url_query);
       break;
     default:
       break;

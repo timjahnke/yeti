@@ -4,8 +4,9 @@ use notify::{
 };
 use std::path::Path;
 use std::process;
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::mpsc::{channel, Receiver};
+use tokio::sync::Mutex;
 
 pub type WatcherRx = Receiver<Event>;
 pub type SharedRx = Arc<Mutex<WatcherRx>>;
@@ -15,7 +16,7 @@ pub struct WatchHandler {}
 impl WatchHandler {
     /// Setup the file watcher, watcher event loop and return the receiver channel for pushing notifications
     pub fn watcher(watch_dir: &str) -> (INotifyWatcher, SharedRx) {
-        let (transmitter, receiver) = channel();
+        let (transmitter, receiver) = channel(1);
 
         let mut is_change_event_occuring = false;
 
@@ -34,7 +35,7 @@ impl WatchHandler {
                             ModifyKind::Data(_) => {
                                 if !is_change_event_occuring {
                                     transmitter
-                                        .send(event)
+                                        .blocking_send(event)
                                         .expect("Failed to send modify event");
                                     is_change_event_occuring = true;
                                 }
@@ -42,12 +43,9 @@ impl WatchHandler {
                             // Ignore other Modification events. E.g.  create, metadata, rename, delete,
                             _ => {}
                         },
-                        // Send file access close event and clean up
+                        // Detect file access close event after save and clean up
                         EventKind::Access(access_kind) => match access_kind {
                             AccessKind::Close(AccessMode::Write) => {
-                                transmitter
-                                    .send(event)
-                                    .expect("Failed to send modify event");
                                 is_change_event_occuring = false;
                             }
                             _ => {}

@@ -17,7 +17,6 @@ use crate::watcher::WatchHandler;
 
 #[tokio::main]
 async fn main() {
-    let config_filename = "yeti.json";
     println!("🧊 Yeti v{}", env!("CARGO_PKG_VERSION"));
 
     // Check sass is installed in global path on the current system
@@ -33,20 +32,28 @@ async fn main() {
         }
     }
 
+    let config_filepath = match std::env::current_dir() {
+        Ok(path) => format!("{}/yeti.json", path.display()),
+        Err(e) => {
+            eprintln!("🚨 Failed to get current directory. Error: {:?}", e);
+            process::exit(1);
+        }
+    };
+
     // Gracefully exit if no yeti.json file is found
-    if !Path::new(&config_filename).exists() {
+    if !Path::new(&config_filepath).exists() {
         eprintln!("🚨 No yeti.json file found in the current directory. Create one to begin. Exiting... \n");
         process::exit(1);
     }
 
     // Check for existing empty json file (0 bytes in size)
-    let is_json_empty = fs::metadata(&config_filename)
+    let is_json_empty = fs::metadata(&config_filepath)
         .expect("Failed to read yeti.json metadata")
         .len()
         == 0;
 
     if is_json_empty {
-        ServerConfig::set_default_json_values(&config_filename);
+        ServerConfig::set_default_json_values(&config_filepath);
         println!("📝 Set default yeti.json key-value pairs. Update the values and re-run yeti. Exiting... \n");
         process::exit(1);
     }
@@ -57,13 +64,13 @@ async fn main() {
         watch_dir,
         style_tag_id,
         ..
-    } = ServerConfig::read_json(&config_filename);
+    } = ServerConfig::read_json(&config_filepath);
 
     // Overwrite client.js file with style tag id and port
     ServerConfig::set_client_values(port, &style_tag_id);
 
     // Initialise Server Handler instance
-    let server_handler = ServerHandler {};
+    let server_handler = ServerHandler::new();
 
     // Initialise shared file watcher & channel receiver
     let (_watcher, shared_rx) = WatchHandler::watcher(&watch_dir);
@@ -86,9 +93,26 @@ async fn main() {
     let app = Router::new()
         .route(
             "/ws",
-            get(move |ws, connect_info| server_handler.ws_handler(ws, connect_info, shared_rx)),
+            get(move |ws, connect_info| {
+                server_handler.clone().ws_handler(
+                    ws,
+                    connect_info,
+                    shared_rx,
+                    server_handler.connections.clone(),
+                )
+            }),
         )
-        .route_service("/client", ServeFile::new("client/client.js"));
+        .route_service(
+            "/client",
+            ServeFile::new(format!(
+                "{}/yeti_client/client.js",
+                std::env::current_exe()
+                    .expect("Couldn't get current exe path")
+                    .parent()
+                    .expect("Couldn't get parent path")
+                    .display()
+            )),
+        );
     println!("🔭 Watching directory /{}... \n", watch_dir);
     println!("✨ WebSockets Server active... \n");
     println!("🏠 Host Address: ");
