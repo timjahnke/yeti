@@ -11,7 +11,8 @@ pub type WatcherRx = UnboundedReceiver<Event>;
 pub struct WatchHandler {}
 
 impl WatchHandler {
-    /// Setup the file watcher, watcher event loop and return the receiver channel for pushing notifications
+    /// Sets up the file watcher and an unbounded channel for publishing events from sync to async
+    /// Returns a tuple of the watcher and `unbounded_channel` receiver
     pub fn watcher(watch_dir: &str) -> (INotifyWatcher, WatcherRx) {
         let (transmitter, receiver) = unbounded_channel();
 
@@ -24,17 +25,24 @@ impl WatchHandler {
                 match event {
                     Err(e) => {
                         eprintln!("Error: {:?}", e);
-                        return;
                     }
                     Ok(event) => match event.kind {
                         // Send message on first modify event
                         EventKind::Modify(modify_kind) => match modify_kind {
                             ModifyKind::Data(_) => {
                                 if !is_change_event_occuring {
-                                    transmitter
-                                        .send(event)
-                                        .expect("Failed to send modify event");
-                                    is_change_event_occuring = true;
+                                    let is_scss_file = event
+                                        .paths
+                                        .iter()
+                                        .any(|path| path.extension().unwrap_or_default() == "scss");
+
+                                    // Only push .scss file changes
+                                    if is_scss_file {
+                                        transmitter
+                                            .send(event)
+                                            .expect("Failed to send modify event");
+                                        is_change_event_occuring = true;
+                                    }
                                 }
                             }
                             // Ignore other Modification events. E.g.  create, metadata, rename, delete,
@@ -58,7 +66,7 @@ impl WatchHandler {
         match watcher.watch(Path::new(watch_dir), RecursiveMode::Recursive) {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("Failed to watch directory: {:?}", e);
+                eprintln!("🚨 Failed to watch directory: {:?}", e);
                 process::exit(1);
             }
         }
