@@ -14,7 +14,7 @@ use notify::EventKind;
 use tokio::sync::Mutex;
 
 use crate::config::ServerConfig;
-use crate::watcher::SharedRx;
+use crate::watcher::WatchHandler;
 
 type SharedConnections = Arc<Mutex<HashMap<SocketAddr, SplitSink<WebSocket, Message>>>>;
 
@@ -34,10 +34,9 @@ impl ServerHandler {
         self,
         ws: WebSocketUpgrade,
         ConnectInfo(addr): ConnectInfo<SocketAddr>,
-        rx: SharedRx,
         connections: SharedConnections,
     ) -> Response {
-        ws.on_upgrade(move |socket| Self::handle_socket(self, socket, addr, rx, connections))
+        ws.on_upgrade(move |socket| Self::handle_socket(self, socket, addr, connections))
     }
 
     /// Handles and processes incoming socket connections. Is passed to the stream listener.
@@ -45,8 +44,7 @@ impl ServerHandler {
         self,
         socket: WebSocket,
         who: SocketAddr,
-        rx: SharedRx,
-        connections: SharedConnections,
+        _connections: SharedConnections,
     ) {
         println!("Incoming connection from {:?}", who);
 
@@ -59,15 +57,16 @@ impl ServerHandler {
         let ServerConfig {
             input_file_path,
             output_file_path,
+            watch_dir,
             ..
         } = ServerConfig::read_json(&config_filename);
 
-        let (sender, mut receiver) = socket.split();
-        connections.lock().await.insert(who, sender);
+        let (mut sender, mut receiver) = socket.split();
 
         // Create task to check socket connection
         // While able to receive a message from the client, connection is deemed active
         // * Client will never send a message, though the websocket server does not know and will wait *
+
         let socket_task = tokio::spawn(async move {
             while let Some(msg) = receiver.next().await {
                 match msg {
@@ -77,11 +76,15 @@ impl ServerHandler {
             }
         });
 
-        let watcher_connections = connections.clone();
         // Create task for watching file events
-        // await for its execution to prevent the watcher from dropping due to lifetime of its function block
         let watch_task = tokio::spawn(async move {
-            while let Some(event) = rx.lock().await.recv().await {
+            // Initialise shared file watcher & channel receiver
+            let (_watcher, mut watcher_rx) = WatchHandler::watcher(&watch_dir);
+            println!("🔭 Watching directory /{}... \n", watch_dir);
+
+            // Channel will sleep until message in channel
+            // who/ socket value becomes stale during sleep
+            while let Some(event) = watcher_rx.recv().await {
                 match event.kind {
                     EventKind::Modify(modify_kind) => match modify_kind {
                         ModifyKind::Data(data_event) => {
@@ -120,13 +123,11 @@ impl ServerHandler {
                                             elapsed.as_millis() as f64 / 1000.0
                                         );
 
-                                        let mut res = watcher_connections.lock().await;
-                                        let sender = res.get_mut(&who).expect(
-                                            format!("🚨 No connection found for {who}").as_str(),
-                                        );
                                         match sender.send(Message::Text("reload".to_string())).await
                                         {
-                                            Ok(_) => {}
+                                            Ok(_) => {
+                                                println!("  Successfully sent reload message!");
+                                            }
                                             Err(e) => {
                                                 eprintln!("🚨 Failed to send reload message. {e}")
                                             }
@@ -149,14 +150,11 @@ impl ServerHandler {
         // .await
         // .unwrap();
 
-        // When the client disconnects, the socket task is treated as completed
-        // The watcher task is then dropped
+        // When the client disconnects, the socket task exits
+        // When one task exits, abort the other
         tokio::select! {
-            _ = socket_task => {
-                let mut connected_clients = connections.lock().await;
-                let _ = connected_clients.remove(&who).expect(format!("No connection found for {}", who).as_str());
-                println!("Socket task resolved. Client disconnected.");
-
+           _ = socket_task => {
+            println!("Socket task resolved. Client disconnected.");
             },
             _ = watch_task => {
                 println!("Watch task resolved");

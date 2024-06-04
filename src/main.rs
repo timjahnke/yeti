@@ -13,7 +13,6 @@ mod watcher;
 
 use crate::config::ServerConfig;
 use crate::server::ServerHandler;
-use crate::watcher::WatchHandler;
 
 #[tokio::main]
 async fn main() {
@@ -60,10 +59,7 @@ async fn main() {
 
     // Read yeti.json for configuration values
     let ServerConfig {
-        port,
-        watch_dir,
-        style_tag_id,
-        ..
+        port, style_tag_id, ..
     } = ServerConfig::read_json(&config_filepath);
 
     // Overwrite client.js file with style tag id and port
@@ -71,9 +67,6 @@ async fn main() {
 
     // Initialise Server Handler instance
     let server_handler = ServerHandler::new();
-
-    // Initialise shared file watcher & channel receiver
-    let (_watcher, shared_rx) = WatchHandler::watcher(&watch_dir);
 
     // Create port address and parse
     let port_addr: SocketAddr = format!("127.0.0.1:{port}")
@@ -97,7 +90,6 @@ async fn main() {
                 server_handler.clone().ws_handler(
                     ws,
                     connect_info,
-                    shared_rx,
                     server_handler.connections.clone(),
                 )
             }),
@@ -113,7 +105,6 @@ async fn main() {
                     .display()
             )),
         );
-    println!("🔭 Watching directory /{}... \n", watch_dir);
     println!("✨ WebSockets Server active... \n");
     println!("🏠 Host Address: ");
     println!("   IP: {port_addr}");

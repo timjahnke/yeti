@@ -4,19 +4,16 @@ use notify::{
 };
 use std::path::Path;
 use std::process;
-use std::sync::Arc;
-use tokio::sync::mpsc::{channel, Receiver};
-use tokio::sync::Mutex;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
-pub type WatcherRx = Receiver<Event>;
-pub type SharedRx = Arc<Mutex<WatcherRx>>;
+pub type WatcherRx = UnboundedReceiver<Event>;
 
 pub struct WatchHandler {}
 
 impl WatchHandler {
     /// Setup the file watcher, watcher event loop and return the receiver channel for pushing notifications
-    pub fn watcher(watch_dir: &str) -> (INotifyWatcher, SharedRx) {
-        let (transmitter, receiver) = channel(1);
+    pub fn watcher(watch_dir: &str) -> (INotifyWatcher, WatcherRx) {
+        let (transmitter, receiver) = unbounded_channel();
 
         let mut is_change_event_occuring = false;
 
@@ -35,7 +32,7 @@ impl WatchHandler {
                             ModifyKind::Data(_) => {
                                 if !is_change_event_occuring {
                                     transmitter
-                                        .blocking_send(event)
+                                        .send(event)
                                         .expect("Failed to send modify event");
                                     is_change_event_occuring = true;
                                 }
@@ -66,8 +63,6 @@ impl WatchHandler {
             }
         }
 
-        let shared_rx = Arc::new(Mutex::new(receiver));
-
-        (watcher, shared_rx)
+        (watcher, receiver)
     }
 }
