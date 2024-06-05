@@ -17,8 +17,14 @@ Yeti is a Sass build tool written in Rust for smarter file watching and hot relo
 
 ## Instructions
 - Download the latest release and [add it to your PATH](https://katiek2.github.io/path-doc/).
+  
+  > Make sure to check read/write permissions for the `/yeti_client/client.js` file. It may default to root.
+  
 - In the project directory, create an empty `yeti.json` file.
-- Open terminal in the project directory and run `yeti`. Yeti will populate the empty JSON with the supported key-value pairs.
+- Open terminal in the project directory and run `yeti`.
+
+  > Yeti will populate the empty JSON with the supported key-value pairs.
+
 - Update the `yeti.json` to meet your project structure.
 - Add some code to import the websocket connection script from the server's client endpoint. (Examples below)
 - Run `yeti` again and it launch the server.
