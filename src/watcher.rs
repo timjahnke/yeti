@@ -4,16 +4,19 @@ use notify::{
 };
 use std::path::Path;
 use std::process;
+use std::sync::Arc;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+use tokio::sync::Mutex;
 
 pub type WatcherRx = UnboundedReceiver<Event>;
+pub type SharedRx = Arc<Mutex<WatcherRx>>;
 
 pub struct WatchHandler {}
 
 impl WatchHandler {
     /// Sets up the file watcher and an unbounded channel for publishing events from sync to async
     /// Returns a tuple of the watcher and `unbounded_channel` receiver
-    pub fn watcher(watch_dir: &str) -> (INotifyWatcher, WatcherRx) {
+    pub fn watcher(watch_dir: &str) -> (INotifyWatcher, SharedRx) {
         let (transmitter, receiver) = unbounded_channel();
 
         let mut is_change_event_occuring = false;
@@ -23,9 +26,6 @@ impl WatchHandler {
         let mut watcher = RecommendedWatcher::new(
             move |event: Result<Event, Error>| {
                 match event {
-                    Err(e) => {
-                        eprintln!("Error: {:?}", e);
-                    }
                     Ok(event) => match event.kind {
                         // Send message on first modify event
                         EventKind::Modify(modify_kind) => match modify_kind {
@@ -57,11 +57,15 @@ impl WatchHandler {
                         },
                         _ => {}
                     },
+                    Err(e) => eprintln!("Error: {:?}", e),
                 };
             },
             Config::default(),
         )
-        .expect("Failed to create watcher");
+        .unwrap_or_else(|e| {
+            eprintln!("🚨 Failed to create watcher. {:?}", e);
+            process::exit(1);
+        });
 
         match watcher.watch(Path::new(watch_dir), RecursiveMode::Recursive) {
             Ok(_) => {}
@@ -71,6 +75,8 @@ impl WatchHandler {
             }
         }
 
-        (watcher, receiver)
+        let shared_receiver = Arc::new(Mutex::new(receiver));
+
+        (watcher, shared_receiver)
     }
 }

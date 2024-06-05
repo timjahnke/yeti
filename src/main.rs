@@ -6,6 +6,7 @@ use std::process::{self, Command};
 use std::{env, net::SocketAddr};
 use tokio::net::TcpListener;
 use tower_http::services::ServeFile;
+use watcher::WatchHandler;
 
 mod config;
 mod server;
@@ -31,6 +32,7 @@ async fn main() {
         }
     }
 
+    // Safely exit if no yeti.json file is found
     let config_filepath = match std::env::current_dir() {
         Ok(path) => format!("{}/yeti.json", path.display()),
         Err(e) => {
@@ -38,8 +40,6 @@ async fn main() {
             process::exit(1);
         }
     };
-
-    // Gracefully exit if no yeti.json file is found
     if !Path::new(&config_filepath).exists() {
         eprintln!("🚨 No yeti.json file found in the current directory. Create one to begin. Exiting... \n");
         process::exit(1);
@@ -51,6 +51,7 @@ async fn main() {
         .len()
         == 0;
 
+    // Set default values for empty yeti.json and exit
     if is_json_empty {
         ServerConfig::set_default_json_values(&config_filepath);
         println!("📝 Set default yeti.json key-value pairs. Update the values and re-run yeti. Exiting... \n");
@@ -59,14 +60,18 @@ async fn main() {
 
     // Read yeti.json for configuration values
     let ServerConfig {
-        port, style_tag_id, ..
+        port,
+        style_tag_id,
+        watch_dir,
+        ..
     } = ServerConfig::read_json(&config_filepath);
 
     // Overwrite client.js file with style tag id and port
+    // Exit if not found
     ServerConfig::set_client_values(port, &style_tag_id);
 
     // Initialise Server Handler instance
-    let server_handler = ServerHandler::new();
+    let server_handler = ServerHandler {};
 
     // Create port address and parse
     let port_addr: SocketAddr = format!("127.0.0.1:{port}")
@@ -82,16 +87,17 @@ async fn main() {
         }
     };
 
-    // Pass file watcher receiver to Web Socket route handler
+    // Instantiate file watcher and share receiver to event channel
+    let (_watcher, watcher_rx) = WatchHandler::watcher(&watch_dir);
+
+    // Pass receiver to Web Socket route handler
     let app = Router::new()
         .route(
             "/ws",
             get(move |ws, connect_info| {
-                server_handler.clone().ws_handler(
-                    ws,
-                    connect_info,
-                    server_handler.connections.clone(),
-                )
+                server_handler
+                    .clone()
+                    .ws_handler(ws, connect_info, watcher_rx)
             }),
         )
         .route_service(
@@ -105,6 +111,8 @@ async fn main() {
                     .display()
             )),
         );
+    // Initialise shared file watcher & channel receiver
+    println!("🔭 Watching directory /{}... \n", watch_dir);
     println!("✨ WebSockets Server active... \n");
     println!("🏠 Host Address: ");
     println!("   IP: {port_addr}");

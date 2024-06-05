@@ -1,51 +1,32 @@
-use std::collections::HashMap;
-use std::io::{stderr, BufRead, BufReader};
+use std::io::{BufRead, BufReader};
 use std::net::SocketAddr;
 use std::process::{Command, Stdio};
-use std::sync::Arc;
 use std::time::SystemTime;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::{extract::connect_info::ConnectInfo, response::Response};
-use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use notify::event::ModifyKind;
 use notify::EventKind;
-use tokio::sync::Mutex;
 
 use crate::config::ServerConfig;
-use crate::watcher::WatchHandler;
-
-type SharedConnections = Arc<Mutex<HashMap<SocketAddr, SplitSink<WebSocket, Message>>>>;
+use crate::watcher::SharedRx;
 
 #[derive(Clone)]
-pub struct ServerHandler {
-    pub connections: Arc<Mutex<HashMap<SocketAddr, SplitSink<WebSocket, Message>>>>,
-}
+pub struct ServerHandler {}
 
 impl ServerHandler {
-    pub fn new() -> Self {
-        Self {
-            connections: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
     pub async fn ws_handler(
         self,
         ws: WebSocketUpgrade,
         ConnectInfo(addr): ConnectInfo<SocketAddr>,
-        connections: SharedConnections,
+        rx: SharedRx,
     ) -> Response {
-        ws.on_upgrade(move |socket| Self::handle_socket(self, socket, addr, connections))
+        ws.on_upgrade(move |socket| Self::handle_socket(self, socket, addr, rx))
     }
 
     /// Handles and processes incoming socket connections and assigns them a file watcher.
-    pub async fn handle_socket(
-        self,
-        socket: WebSocket,
-        who: SocketAddr,
-        _connections: SharedConnections,
-    ) {
+    pub async fn handle_socket(self, socket: WebSocket, who: SocketAddr, shared_rx: SharedRx) {
         println!("🤝 Incoming connection from {:?}", who);
 
         let config_filename = format!(
@@ -57,7 +38,6 @@ impl ServerHandler {
         let ServerConfig {
             input_file_path,
             output_file_path,
-            watch_dir,
             ..
         } = ServerConfig::read_json(&config_filename);
 
@@ -79,12 +59,8 @@ impl ServerHandler {
 
         // Create task for watching file events
         let mut watch_task = tokio::spawn(async move {
-            // Initialise shared file watcher & channel receiver
-            let (_watcher, mut watcher_rx) = WatchHandler::watcher(&watch_dir);
-            println!("🔭 Watching directory /{}... \n", watch_dir);
-
             // Channel will sleep until message in channel
-            while let Some(event) = watcher_rx.recv().await {
+            while let Some(event) = shared_rx.lock().await.recv().await {
                 match event.kind {
                     EventKind::Modify(modify_kind) => match modify_kind {
                         ModifyKind::Data(_) => {

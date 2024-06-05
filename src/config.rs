@@ -77,7 +77,7 @@ impl ServerConfig {
         );
 
         if !Path::new(&file_path).exists() {
-            eprintln!("🚨 No client.js file found in the global directory. Check PATH for yeti_client/client.js. Exiting... \n");
+            eprintln!("🚨 Error finding yeti_client/client.js. Check the executable directory for yeti_client/client.js. Exiting... \n");
             process::exit(1);
         }
         let mut contents = fs::read_to_string(&file_path).expect("Failed to read js file.");
