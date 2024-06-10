@@ -52,3 +52,7 @@ socket.onerror = function (error) {
 socket.onclose = function (event) {
   console.log("Connection closed", event.data);
 };
+
+addEventListener("beforeunload", (event) => {
+  socket.close();
+});
