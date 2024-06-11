@@ -1,3 +1,4 @@
+use axum::http::header;
 use axum::routing::get;
 use axum::Router;
 use std::fs;
@@ -5,7 +6,6 @@ use std::path::Path;
 use std::process::{self, Command};
 use std::{env, net::SocketAddr};
 use tokio::net::TcpListener;
-use tower_http::services::ServeFile;
 use watcher::WatchHandler;
 
 mod config;
@@ -66,10 +66,6 @@ async fn main() {
         ..
     } = ServerConfig::read_json(&config_filepath);
 
-    // Overwrite client.js file with style tag id and port
-    // Exit if not found
-    ServerConfig::set_client_values(port, &style_tag_id);
-
     // Initialise Server Handler instance
     let server_handler = ServerHandler {};
 
@@ -100,16 +96,14 @@ async fn main() {
                     .ws_handler(ws, connect_info, watcher_rx)
             }),
         )
-        .route_service(
+        .route(
             "/client",
-            ServeFile::new(format!(
-                "{}/yeti_client/client.js",
-                std::env::current_exe()
-                    .expect("Couldn't get current exe path")
-                    .parent()
-                    .expect("Couldn't get parent path")
-                    .display()
-            )),
+            get(move || async move {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript")],
+                    ServerConfig::serve_javascript_string(port, &style_tag_id),
+                )
+            }),
         );
     // Initialise shared file watcher & channel receiver
     println!("🔭 Watching directory /{}... \n", watch_dir);

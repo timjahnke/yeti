@@ -38,6 +38,7 @@ impl ServerHandler {
         let ServerConfig {
             input_file_path,
             output_file_path,
+            stop_on_error,
             ..
         } = ServerConfig::read_json(&config_filename);
 
@@ -69,7 +70,7 @@ impl ServerHandler {
                             let now = SystemTime::now();
                             let sass_cmd = Command::new("sass")
                                 .args([
-                                    "--stop-on-error",
+                                    if stop_on_error { "--stop-on-error" } else { "" },
                                     format!("{input_file_path}:{output_file_path}").as_str(),
                                     "--style=compressed",
                                     "--no-source-map",

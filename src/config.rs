@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, File},
+    fs::File,
     io::{Read, Write},
-    path::Path,
     process,
 };
 
@@ -13,6 +12,7 @@ pub struct ServerConfig {
     pub output_file_path: String,
     pub style_tag_id: String,
     pub port: u16,
+    pub stop_on_error: bool,
     pub experimental: bool,
 }
 
@@ -27,7 +27,8 @@ impl ServerConfig {
                 "input_file_path": "scss/main.scss",
                 "output_file_path": "dist/main.css",
                 "port": 8080,
-                "style_tag_id": "sage/css-css",
+                "style_tag_id": "css-id",
+                "stop_on_error": true,
                 "experimental": false
             }"#;
 
@@ -64,46 +65,59 @@ impl ServerConfig {
         }
     }
 
-    pub fn set_client_values(port: u16, style_tag_id: &str) {
-        let global_path = std::env::current_exe().expect("Couldn't get current exe path");
-        println!("📂 Current exe path: {}", global_path.display());
+    ///
+    pub fn serve_javascript_string(port: u16, style_tag_id: &str) -> String {
+        format!(
+            r#"
+                // Setup websocket connection for live reloading
+                const socket = new WebSocket("ws://localhost:"+{port}+"/ws");
+                console.info("Yeti client loaded");
+                socket.onopen = function (event){{ 
+                    console.info("Yeti connection opened");
+                }};
 
-        let file_path = format!(
-            "{}/yeti_client/client.js",
-            global_path
-                .parent()
-                .expect("Couldn't get parent path")
-                .display()
-        );
+                // Listen for messages from the Rust websocket server
+                socket.onmessage = function (event) {{
+                    const message = event.data;
+                    console.info("Received message from Yeti server: " + message);
 
-        if !Path::new(&file_path).exists() {
-            eprintln!("🚨 Error finding yeti_client/client.js. Check the executable directory for yeti_client/client.js. Exiting... \n");
-            process::exit(1);
-        }
-        let mut contents = fs::read_to_string(&file_path).expect("Failed to read js file.");
+                    switch (message) {{
+                        case "reload":
+                        console.info("Reloading css");
+                        const styleElement = document.getElementById("{style_tag_id}");
 
-        // Lines to change in client.js file
-        let updated_port = format!("const port = {port};");
-        let updated_style_tag = format!("const style_tag_id = \"{style_tag_id}\";");
+                        // Exit if style element not found
+                        if (!styleElement) {{
+                            console.error("Reload failed. Failed to find element with id: " + "{style_tag_id}");
+                            return;
+                        }}
 
-        let new_contents = contents
-            .lines()
-            .enumerate()
-            .map(|(i, line)| match i {
-                0 => updated_port.as_str(),
-                1 => updated_style_tag.as_str(),
-                _ => line,
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
+                        const url = styleElement.getAttribute("href");
 
-        contents = new_contents;
+                        // Convert timestamp from milliseconds to seconds to mimic PHP time()
+                        const timestampAsSeconds = Math.floor(new Date().getTime() / 1000);
+                        // Add URL query to cache bust
+                        const url_query = url+"?ver="+timestampAsSeconds;
+                        // Set new URL to automatically fetch new css and bust cache
+                        styleElement.setAttribute("href", url_query);
+                        break;
+                        default:
+                        break;
+                    }}
+                }};
 
-        // Write the modified contents back to the file
-        let mut file = fs::File::create(&file_path).expect("Failed to find/create file.");
-        file.write_all(contents.as_bytes())
-            .expect("Failed to write to file.");
+                socket.onerror = function (error) {{
+                console.error("Yeti error: ", error);
+                }};
 
-        println!("📝 client.js updated successfully.");
+                socket.onclose = function (event) {{
+                console.log("Yeti Connection closed");
+                }};
+
+                addEventListener("beforeunload", (event) => {{
+                socket.close();
+                }});
+        "#
+        )
     }
 }
