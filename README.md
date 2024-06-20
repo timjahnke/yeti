@@ -17,9 +17,7 @@ Yeti is a Sass build tool written in Rust for smarter file watching and hot relo
 
 ## Instructions
 - Download the latest release, extract it and [add it to your PATH](https://katiek2.github.io/path-doc/).
-  > You may find it easier to use `wget https://github.com/timjahnke/yeti/releases/download/v0.4.0-beta/yeti-v0.4.0-beta.tar.gz` in your PATH, extract and remove the tarball.
-  
-  > Make sure to check read/write permissions for the `/yeti_client/client.js` file. It may default to root.
+  > You may find it easier to use `wget https://github.com/timjahnke/yeti/releases/download/v0.5.0-beta/yeti-v0.5.0-beta.tar.gz` in your PATH, extract and remove the tarball.
   
 - In the project directory, create an empty `yeti.json` file.
 - Open terminal in the project directory and run `yeti`.
