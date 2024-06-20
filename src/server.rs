@@ -67,14 +67,22 @@ impl ServerHandler {
                         ModifyKind::Data(_) => {
                             println!("🔨 File change. Building Sass...");
 
+                            let input_output_path = format!("{input_file_path}:{output_file_path}");
+
+                            // Build Args based on yeti.json configuration
+                            let mut dynamic_args: Vec<&str> = vec![
+                                if stop_on_error { "--stop-on-error" } else { "" },
+                                input_output_path.as_str(),
+                                "--style=compressed",
+                                "--no-source-map",
+                            ];
+
+                            // Discard empty args
+                            dynamic_args.retain(|&arg| !arg.is_empty());
+
                             let now = SystemTime::now();
                             let sass_cmd = Command::new("sass")
-                                .args([
-                                    if stop_on_error { "--stop-on-error" } else { "" },
-                                    format!("{input_file_path}:{output_file_path}").as_str(),
-                                    "--style=compressed",
-                                    "--no-source-map",
-                                ])
+                                .args(dynamic_args)
                                 .stderr(Stdio::piped())
                                 .spawn();
 
