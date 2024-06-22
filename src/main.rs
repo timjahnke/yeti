@@ -63,8 +63,13 @@ async fn main() {
         port,
         style_tag_id,
         watch_dir,
+        experimental,
         ..
     } = ServerConfig::read_json(&config_filepath);
+
+    if experimental {
+        println!("🚧 Experimental mode enabled. Using Grass to compile Sass files.");
+    }
 
     // Initialise Server Handler instance
     let server_handler = ServerHandler {};
