@@ -22,22 +22,28 @@ impl ServerHandler {
         ws: WebSocketUpgrade,
         ConnectInfo(addr): ConnectInfo<SocketAddr>,
         rx: SharedRx,
+        config: ServerConfig,
     ) -> Response {
-        ws.on_upgrade(move |socket| Self::handle_socket(self, socket, addr, rx))
+        ws.on_upgrade(move |socket| Self::handle_socket(self, socket, addr, rx, config))
     }
 
     /// Handles and processes incoming socket connections and assigns them a file watcher.
-    pub async fn handle_socket(self, socket: WebSocket, who: SocketAddr, shared_rx: SharedRx) {
+    pub async fn handle_socket(
+        self,
+        socket: WebSocket,
+        who: SocketAddr,
+        shared_rx: SharedRx,
+        config: ServerConfig,
+    ) {
         println!("🤝 Incoming connection from {:?}", who);
 
-        let config_filename = format!("{}/yeti.json", std::env::current_dir().unwrap().display());
         let ServerConfig {
             input_file_path,
             output_file_path,
             stop_on_error,
             experimental,
             ..
-        } = ServerConfig::read_json(&config_filename);
+        } = config;
 
         // Split socket to monitor send/ receive in parallel
         // Also for ownership and to move within task closures

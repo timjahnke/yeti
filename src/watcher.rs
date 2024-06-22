@@ -67,13 +67,12 @@ impl WatchHandler {
             process::exit(1);
         });
 
-        match watcher.watch(Path::new(watch_dir), RecursiveMode::Recursive) {
-            Ok(_) => {}
-            Err(e) => {
+        watcher
+            .watch(Path::new(watch_dir), RecursiveMode::Recursive)
+            .unwrap_or_else(|e| {
                 eprintln!("🚨 Failed to watch directory: {:?}", e);
                 process::exit(1);
-            }
-        }
+            });
 
         let shared_receiver = Arc::new(Mutex::new(receiver));
 
