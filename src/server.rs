@@ -90,7 +90,7 @@ impl ServerHandler {
                             );
 
                             match sender.send(Message::Text("reload".to_string())).await {
-                                Ok(_) => println!("✅ Successfully sent reload message!"),
+                                Ok(_) => println!("✅ Successfully sent reload message! \n"),
                                 Err(e) => eprintln!("🚨 Failed to send reload message. {e}"),
                             }
                         } else if let Err(e) = css_result {
@@ -140,7 +140,7 @@ impl ServerHandler {
                                 );
 
                                 match sender.send(Message::Text("reload".to_string())).await {
-                                    Ok(_) => println!("✅ Successfully sent reload message!"),
+                                    Ok(_) => println!("✅ Successfully sent reload message! \n"),
                                     Err(e) => eprintln!("🚨 Failed to send reload message. {e}"),
                                 }
                             } else {
