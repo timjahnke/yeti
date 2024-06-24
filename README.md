@@ -7,7 +7,8 @@
 - Can triggers hot reloads of Sass files after build.
 - Supports concurrency and collaboration. More than 1 person can work on a project and receive hot reloads.
 - Only creates one file watcher and shares it among connections. 
-- Is lightweight. Doesn't rely on the Node.js runtime. 
+- Is lightweight. Doesn't rely on the Node.js runtime.
+- Has an optional experimental API for 50% faster sass compilation using [Grass](https://github.com/connorskees/grass). 
 
 <br>
 Yeti is a Sass build tool written in Rust for smarter file watching and hot reloading of Sass for Server Languages & Environments. At this time, Yeti is only available for Linux.   
@@ -17,7 +18,7 @@ Yeti is a Sass build tool written in Rust for smarter file watching and hot relo
 
 ## Instructions
 - Download the latest release, extract it and [add it to your PATH](https://katiek2.github.io/path-doc/).
-  > You may find it easier to use `wget https://github.com/timjahnke/yeti/releases/download/v0.5.0-beta/yeti-v0.5.0-beta.tar.gz` in your PATH, extract and remove the tarball.
+  > You may find it easier to use `wget https://github.com/timjahnke/yeti/releases/download/v0.5.2-beta/yeti-v0.5.2-beta.tar.gz` in your PATH, extract and remove the tarball.
   
 - In the project directory, create an empty `yeti.json` file.
 - Open terminal in the project directory and run `yeti`.
