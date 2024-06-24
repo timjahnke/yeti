@@ -2,10 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     io::{Read, Write},
+    path::Path,
     process,
 };
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct ServerConfig {
     pub watch_dir: String,
     pub input_file_path: String,
@@ -17,8 +18,21 @@ pub struct ServerConfig {
 }
 
 impl ServerConfig {
+    // Creates a new instance of the `ServerConfig` and stores parameter values within it.
+    pub fn new(config: ServerConfig) -> Self {
+        ServerConfig {
+            watch_dir: config.watch_dir,
+            input_file_path: config.input_file_path,
+            output_file_path: config.output_file_path,
+            style_tag_id: config.style_tag_id,
+            port: config.port,
+            stop_on_error: config.stop_on_error,
+            experimental: config.experimental,
+        }
+    }
+
     /// Overwrites empty JSON file with default key-value pairs.
-    pub fn set_default_json_values(file_path: &str) {
+    pub fn set_default_json_values<P: AsRef<Path>>(file_path: P) {
         println!("Updating empty yeti.json file");
         // Overwrite file with some default content
 
@@ -47,7 +61,7 @@ impl ServerConfig {
     }
 
     /// Read the JSON file and return the parsed JSON value.
-    pub fn read_json(file_path: &str) -> Self {
+    pub fn read_json<P: AsRef<Path>>(file_path: P) -> Self {
         // Unwrap safe as file existence checked prior
         let mut file = File::open(file_path).unwrap();
 
@@ -93,11 +107,12 @@ impl ServerConfig {
                         }}
 
                         const url = styleElement.getAttribute("href");
+                        const urlWithoutQuery = url.split("?")[0];
 
                         // Convert timestamp from milliseconds to seconds to mimic PHP time()
                         const timestampAsSeconds = Math.floor(new Date().getTime() / 1000);
                         // Add URL query to cache bust
-                        const url_query = url+"?ver="+timestampAsSeconds;
+                        const url_query = urlWithoutQuery+"?ver="+timestampAsSeconds;
                         // Set new URL to automatically fetch new css and bust cache
                         styleElement.setAttribute("href", url_query);
                         break;

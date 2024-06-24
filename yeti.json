@@ -6,5 +6,6 @@
   "output_file_path": "dist/main.css",
   "style_tag_id": "sage/css-css",
   "port": 8080,
-  "experimental": false
+  "experimental": false,
+  "stop_on_error": false
 }
