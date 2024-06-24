@@ -8,7 +8,7 @@
 - Supports concurrency and collaboration. More than 1 person can work on a project and receive hot reloads.
 - Only creates one file watcher and shares it among connections. 
 - Is lightweight. Doesn't rely on the Node.js runtime.
-- Has an optional experimental API for 50% faster sass compilation using [Grass](https://github.com/connorskees/grass). 
+- Uses [Grass](https://github.com/connorskees/grass) for 50% faster Sass compilation than Dart Sass. Default Sass compiler is Dart Sass.  
 
 <br>
 Yeti is a Sass build tool written in Rust for smarter file watching and hot reloading of Sass for Server Languages & Environments. At this time, Yeti is only available for Linux.   
@@ -24,6 +24,7 @@ Yeti is a Sass build tool written in Rust for smarter file watching and hot relo
 - Open terminal in the project directory and run `yeti`.
 
   > Yeti will populate the empty JSON with the supported key-value pairs.
+  > To opt in to using Grass, set `experimental` to `true`. 
 
 - Update the `yeti.json` to meet your project structure.
 - Add some code to import the websocket connection script from the server's client endpoint. (Examples below)
