@@ -107,11 +107,12 @@ impl ServerConfig {
                         }}
 
                         const url = styleElement.getAttribute("href");
+                        const urlWithoutQuery = url.split("?")[0];
 
                         // Convert timestamp from milliseconds to seconds to mimic PHP time()
                         const timestampAsSeconds = Math.floor(new Date().getTime() / 1000);
                         // Add URL query to cache bust
-                        const url_query = url+"?ver="+timestampAsSeconds;
+                        const url_query = urlWithoutQuery+"?ver="+timestampAsSeconds;
                         // Set new URL to automatically fetch new css and bust cache
                         styleElement.setAttribute("href", url_query);
                         break;
